@@ -20,7 +20,9 @@ set -o pipefail
 
 DEFAULT_CHART_RELEASER_VERSION=v0.2.3
 
-: "${CR_TOKEN:?Environment variable CR_TOKEN must be set}"
+if [ -z "${ACTIONS_DEPLOY_KEY:-}" ] && [ -z "${CR_TOKEN:-}" ]; then
+    echo "Either environment variable ACTIONS_DEPLOY_KEY or CR_TOKEN must be set"
+fi
 
 show_help() {
 cat << EOF
@@ -210,6 +212,8 @@ setup_deploy_key() {
         ssh-keyscan -t rsa github.com > "${SSH_DIR}/known_hosts"
         echo "${ACTIONS_DEPLOY_KEY}" > "${SSH_DIR}/id_rsa"
         chmod 400 "${SSH_DIR}/id_rsa"
+
+        repo_url="git@github.com:$owner/$repo.git"
     fi
 }
 
@@ -236,7 +240,11 @@ update_index() {
     git add index.yaml
     git commit --message="Update index.yaml" --signoff
 
-    local repo_url="https://x-access-token:$CR_TOKEN@github.com/$owner/$repo"
+    # If ACTIONS_DEPLOY_KEY is set, repo_url will be set in setup_deploy_key().
+    # Otherwise, use CR_TOKEN.
+    if [ -z "${repo_url:-}" ]; then
+        local repo_url="https://x-access-token:$CR_TOKEN@github.com/$owner/$repo"
+    fi
     git push "$repo_url" gh-pages
 
     popd > /dev/null

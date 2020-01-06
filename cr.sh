@@ -70,6 +70,7 @@ main() {
             package_chart "$chart"
         done
 
+        setup_deploy_key
         release_charts
         update_index
     else
@@ -198,6 +199,18 @@ package_chart() {
 
     echo "Packaging chart '$chart'..."
     helm package "$chart" --destination .cr-release-packages --dependency-update --save=false
+}
+
+setup_deploy_key() {
+    if [ -n "${ACTIONS_DEPLOY_KEY}" ]; then
+        echo "Setting up ACTIONS_DEPLOY_KEY..."
+
+        SSH_DIR="${HOME}/.ssh"
+        mkdir "${SSH_DIR}"
+        ssh-keyscan -t rsa github.com > "${SSH_DIR}/known_hosts"
+        echo "${ACTIONS_DEPLOY_KEY}" > "${SSH_DIR}/id_rsa"
+        chmod 400 "${SSH_DIR}/id_rsa"
+    fi
 }
 
 release_charts() {
